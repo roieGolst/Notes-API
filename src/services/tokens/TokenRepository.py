@@ -48,6 +48,7 @@ class TokenRepository(TokenRepositoryInterface):
     __TOKEN_MINUTES_VALIDITY: int
     __ALGORITHM: str
 
+    # Singleton implementation
     def __new__(cls):
         if not cls.__INSTANCE:
             with cls.__lock:
@@ -59,6 +60,7 @@ class TokenRepository(TokenRepositoryInterface):
         super().__init__()
         self.__load_configs()
 
+    # Load class configuration using jsonschema package for validation
     def __load_configs(self):
         with open(os.path.join(dir_path, '..', '..', '..', 'configs', 'jwt.json'), "r") as configs:
             target = json.load(configs)
