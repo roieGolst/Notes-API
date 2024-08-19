@@ -9,7 +9,7 @@ import jwt
 from jsonschema import validate
 from typing_extensions import Self
 
-from src.database.models.User import User
+from src.core.database.models import User
 from .TokenRepositoryInterface import TokenRepositoryInterface
 from .common.tokenTypes import ExpirationType, Tokens, TokenHeaders, TokenPayload
 
@@ -86,30 +86,31 @@ class TokenRepository(TokenRepositoryInterface):
         headers = TokenHeaders(exp=exp)
 
         return jwt.encode(
-            payload=payload.dict(),
+            payload=payload.model_dump(),
             key=self.__SECRET,
-            headers=headers.dict(),
+            headers=headers.model_dump(),
             algorithm=self.__ALGORITHM
         )
 
-    async def get_new_token(self, refresh_token: str, user_db: User) -> str:
+    async def get_new_token(self, refresh_token: str, user: User) -> str:
         try:
-            if refresh_token not in user_db.tokens.refresh_token:
+            if refresh_token not in user.tokens.refresh_token:
                 raise Exception('Refresh token not exists')
 
-            user_sing = jwt.decode(
-                refresh_token,
-                self.__SECRET,
-                algorithms=[self.__ALGORITHM])
+            user_sing = self.get_user_sign(refresh_token)
 
             return self._generate_token(
-                payload=TokenPayload(id=user_sing.id, username=user_db.username),
+                payload=TokenPayload(id=user_sing['id'], username=user.username),
                 exp_type=ExpirationType.Access
             )
 
         except jwt.ExpiredSignatureError as err:
             print(err)
             raise Exception("Refresh token forbidden")
+
+        except jwt.InvalidTokenError as err:
+            print(err)
+            raise Exception("Invalid refresh token")
 
     def auth_token(self, token: str) -> bool:
         if not self.get_user_sign(token):

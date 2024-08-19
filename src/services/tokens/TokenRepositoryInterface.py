@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
+from typing import Optional
 
-from src.database.models.User import User
+from src.core.database.models import User
 from src.services.tokens.common.tokenTypes import ExpirationType, TokenPayload, Tokens
 
 
@@ -20,4 +20,7 @@ class TokenRepositoryInterface(ABC):
 
     @abstractmethod
     def auth_token(self, token: str) -> bool:
+        pass
+
+    def get_user_sign(self, token: str) -> Optional[dict]:
         pass

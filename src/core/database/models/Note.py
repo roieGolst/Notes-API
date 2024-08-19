@@ -1,7 +1,16 @@
 from datetime import datetime
 
 from beanie import Document, PydanticObjectId
+from pydantic import BaseModel
 from pydantic import Field
+
+class PostNoteRequest(BaseModel):
+    title: str
+    body: str
+
+class PostNoteResponse(BaseModel):
+    title: str
+    body: str
 
 
 class Note(Document):
@@ -11,5 +20,5 @@ class Note(Document):
     timestamps: datetime = Field(default_factory=datetime.now)
     sentiment: str
 
-    class Config:
+    class Settings:
         name = "notes"

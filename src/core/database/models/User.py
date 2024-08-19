@@ -1,4 +1,5 @@
 from beanie import Document, PydanticObjectId
+from beanie import Indexed
 from pydantic import EmailStr, BaseModel
 from typing import List, Optional
 
@@ -26,10 +27,15 @@ class UserAuthResponse(BaseModel):
     token: str
 
 
-class User(Document):
-    _id: PydanticObjectId
+class UserProfile(BaseModel):
+    id: PydanticObjectId
     username: str
     email: EmailStr
+
+
+class User(Document):
+    username: Indexed(str, unique=True)
+    email: Indexed(EmailStr, unique=True)
     hashed_password: str
     tokens: UserTokens = UserTokens()
     last_sentiment: Optional[str] = None

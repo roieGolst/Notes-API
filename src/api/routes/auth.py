@@ -1,13 +1,12 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Response, HTTPException, status, Depends
+from fastapi import APIRouter, Response, status
 from beanie.operators import Or
-from src.database.models.User import User, UserRegistrationResponse, UserRegistrationRequest, UserAuthRequest
-from src.services.tokens.TokenRepository import TokenRepository
-from src.services.tokens.common.tokenTypes import TokenPayload
-from src.services.password.PasswordService import PasswordService
 
-from ..middlewares.authenticate import authenticate_middleware, auth_and_get_user_sign
+from src.core.database.models.User import User, UserRegistrationResponse, UserRegistrationRequest, UserAuthRequest, UserProfile
+from src.services.tokens.common.tokenTypes import TokenPayload
+
+from ..common.types import PasswordDep
+from ..common.types import TokenDep
+from ..middlewares.authenticate import AuthAndGetSingDep
 
 router = APIRouter(prefix="/auth")
 
@@ -16,7 +15,7 @@ router = APIRouter(prefix="/auth")
     path="/register",
     response_model=UserRegistrationResponse
 )
-async def register(user: UserRegistrationRequest, password_service: Annotated[PasswordService, Depends()]):
+async def register(user: UserRegistrationRequest, password_service: PasswordDep):
     new_user = User(
         username=user.username,
         email=user.email,
@@ -37,8 +36,8 @@ async def register(user: UserRegistrationRequest, password_service: Annotated[Pa
 )
 async def login(
         auth: UserAuthRequest,
-        password_service: Annotated[PasswordService, Depends()],
-        token_repo: TokenRepository = Depends(TokenRepository.get_instance)
+        password_service: PasswordDep,
+        token_repo: TokenDep
 ):
     query = Or(User.email == auth.username, User.username == auth.username)
     user = await User.find_one(query)
@@ -51,6 +50,8 @@ async def login(
     if not password_service.check_password(auth.password, user['hashed_password']):
         return Response(status_code=status.HTTP_401_UNAUTHORIZED, content='Password wrong')
 
+    # TODO: Add the tokens within dedicated user document
+    # TODO: Added MongoDB exp indexed that removes expired refresh tokens
     tokens = token_repo.generate_tokens(TokenPayload(id=user['id'], username=user["username"]))
 
     response_headers = {'token': tokens.access_token}
@@ -62,7 +63,16 @@ async def login(
 
 @router.get(
     path="/profile/",
-    dependencies=[Depends(authenticate_middleware)]
+    response_model=UserProfile
 )
-async def profile(token: Annotated[str, Depends(auth_and_get_user_sign)]):
-    print(token)
+async def profile(token: AuthAndGetSingDep):
+    user = await User.get(token['id'])
+
+    if not user:
+        return Response(status_code=status.HTTP_401_UNAUTHORIZED, content="User not exits")
+
+    return UserProfile(
+        id=user.id,
+        username=user.username,
+        email=user.email
+    )
